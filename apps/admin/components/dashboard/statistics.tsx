@@ -79,22 +79,22 @@ export default function Statistics() {
       <div className='grid grid-cols-2 gap-2 md:grid-cols-4'>
         {[
           {
-            title: t('onlineIPCount'),
-            value: ServerTotal?.online_user_ips || 0,
+            title: t('onlineUsersCount'),
+            value: ServerTotal?.online_users || 0,
             icon: 'uil:users-alt',
-            href: '/dashboard/server',
+            href: '/dashboard/servers',
           },
           {
             title: t('onlineNodeCount'),
             value: ServerTotal?.online_servers || 0,
             icon: 'uil:server-network',
-            href: '/dashboard/server',
+            href: '/dashboard/servers',
           },
           {
             title: t('offlineNodeCount'),
             value: ServerTotal?.offline_servers || 0,
             icon: 'uil:server-network-alt',
-            href: '/dashboard/server',
+            href: '/dashboard/servers',
           },
           {
             title: t('pendingTickets'),
