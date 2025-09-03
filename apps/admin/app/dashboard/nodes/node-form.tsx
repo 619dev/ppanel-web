@@ -1,6 +1,6 @@
 'use client';
 
-import { filterServerList } from '@/services/admin/server';
+import { filterServerList, queryNodeTag } from '@/services/admin/server';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@workspace/ui/components/button';
@@ -62,11 +62,6 @@ const buildSchema = (t: ReturnType<typeof useTranslations>) =>
 
 export type NodeFormValues = z.infer<ReturnType<typeof buildSchema>>;
 
-async function getServers(): Promise<ServerRow[]> {
-  const { data } = await filterServerList({ page: 1, size: 1000 });
-  return (data?.data?.list || []) as ServerRow[];
-}
-
 export default function NodeForm(props: {
   trigger: string;
   title: string;
@@ -97,11 +92,20 @@ export default function NodeForm(props: {
   const { data } = useQuery({
     queryKey: ['filterServerListAll'],
     queryFn: async () => {
-      const { data } = await filterServerList({ page: 1, size: 1000 });
+      const { data } = await filterServerList({ page: 1, size: 999999999 });
       return data?.data?.list || [];
     },
   });
   const servers: ServerRow[] = data as ServerRow[];
+
+  const { data: tagsData } = useQuery({
+    queryKey: ['queryNodeTag'],
+    queryFn: async () => {
+      const { data } = await queryNodeTag();
+      return data?.data?.tags || [];
+    },
+  });
+  const existingTags: string[] = tagsData as string[];
 
   const currentServer = useMemo(() => servers?.find((s) => s.id === serverId), [servers, serverId]);
 
@@ -135,42 +139,52 @@ export default function NodeForm(props: {
 
     const sel = servers.find((s) => s.id === id);
     const dirty = form.formState.dirtyFields as Record<string, any>;
+    const currentValues = form.getValues();
+
     if (!dirty.name) {
       form.setValue('name', (sel?.name as string) || '', { shouldDirty: false });
     }
-    if (!dirty.address) {
+
+    if (
+      !dirty.address &&
+      (!currentValues.address || currentValues.address === (sel?.address as string))
+    ) {
       form.setValue('address', (sel?.address as string) || '', { shouldDirty: false });
     }
+
     const allowed = (sel?.protocols || [])
       .map((p) => (p as any).type as ProtocolName)
       .filter(Boolean);
-    if (!allowed.includes(form.getValues('protocol') as ProtocolName)) {
-      form.setValue('protocol', '' as any);
+
+    const currentProtocol = form.getValues('protocol') as ProtocolName;
+
+    if (!allowed.includes(currentProtocol)) {
+      const firstProtocol = allowed[0] || '';
+      form.setValue('protocol', firstProtocol as any);
+
+      if (firstProtocol) {
+        handleProtocolChange(firstProtocol);
+      }
     }
-    // Do not auto-fill port here; handled in handleProtocolChange
   }
 
   function handleProtocolChange(nextProto?: ProtocolName | null) {
     const p = (nextProto || '') as ProtocolName | '';
     form.setValue('protocol', p);
     if (!p || !currentServer) return;
+
     const dirty = form.formState.dirtyFields as Record<string, any>;
+    const currentValues = form.getValues();
+
     if (!dirty.port) {
       const hit = (currentServer.protocols as any[]).find((x) => (x as any).type === p);
       const port = (hit as any)?.port as number | undefined;
-      form.setValue('port', typeof port === 'number' && port > 0 ? port : 0, {
-        shouldDirty: false,
-      });
-    }
-  }
+      const newPort = typeof port === 'number' && port > 0 ? port : 0;
 
-  async function submit(values: NodeFormValues) {
-    const ok = await onSubmit(values);
-    if (ok) {
-      form.reset();
-      setOpen(false);
+      if (!currentValues.port || currentValues.port === 0 || currentValues.port === newPort) {
+        form.setValue('port', newPort, { shouldDirty: false });
+      }
     }
-    return ok;
   }
 
   return (
@@ -293,6 +307,7 @@ export default function NodeForm(props: {
                         placeholder={t('tags_placeholder')}
                         value={field.value || []}
                         onChange={(v) => form.setValue(field.name, v)}
+                        options={existingTags}
                       />
                     </FormControl>
                     <FormDescription>{t('tags_description')}</FormDescription>
@@ -310,14 +325,11 @@ export default function NodeForm(props: {
           </Button>
           <Button
             disabled={loading}
-            onClick={form.handleSubmit(
-              async (vals) => submit(vals),
-              (errors) => {
-                const key = Object.keys(errors)[0] as keyof typeof errors;
-                if (key) toast.error(String(errors[key]?.message));
-                return false;
-              },
-            )}
+            onClick={form.handleSubmit(onSubmit, (errors) => {
+              const key = Object.keys(errors)[0] as keyof typeof errors;
+              if (key) toast.error(String(errors[key]?.message));
+              return false;
+            })}
           >
             {t('confirm')}
           </Button>
