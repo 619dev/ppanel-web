@@ -64,7 +64,7 @@ const createClientFormSchema = (t: any) =>
     description: z.string().optional(),
     icon: z.string().optional(),
     user_agent: z.string().min(1, `User-Agent ${t('form.validation.userAgentRequiredSuffix')}`),
-    scheme: z.string(),
+    scheme: z.string().optional(),
     template: z.string(),
     output_format: z.string(),
     download_link: z.object({
@@ -83,8 +83,6 @@ export function ProtocolForm() {
   const t = useTranslations('subscribe');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewApplicationId, setPreviewApplicationId] = useState<number | null>(null);
   const [editingClient, setEditingClient] = useState<API.SubscribeApplication | null>(null);
   const tableRef = useRef<ProTableActions>(null);
 
@@ -670,6 +668,7 @@ export function ProtocolForm() {
                                         description: 'Node tags',
                                         items: { type: 'string' },
                                       },
+                                      Sort: { type: 'number', description: 'Node sort order' },
                                       // Security Options
                                       Security: {
                                         type: 'string',
