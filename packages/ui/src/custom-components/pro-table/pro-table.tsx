@@ -30,6 +30,7 @@ import { ColumnToggle } from '@workspace/ui/custom-components/pro-table/column-t
 import { Pagination } from '@workspace/ui/custom-components/pro-table/pagination';
 import { SortableRow } from '@workspace/ui/custom-components/pro-table/sortable-row';
 import { ProTableWrapper } from '@workspace/ui/custom-components/pro-table/wrapper';
+import { cn } from '@workspace/ui/lib/utils';
 import { useSize } from 'ahooks';
 import { GripVertical, ListRestart, Loader, RefreshCcw } from 'lucide-react';
 import React, { Fragment, useEffect, useImperativeHandle, useRef, useState } from 'react';
@@ -69,6 +70,7 @@ export interface ProTableProps<TData, TValue> {
     targetId: string | number | null,
     items: TData[],
   ) => Promise<TData[]>;
+  initialFilters?: Record<string, unknown>;
 }
 
 export interface ProTableActions {
@@ -89,9 +91,14 @@ export function ProTable<
   texts,
   empty,
   onSort,
+  initialFilters,
 }: ProTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() =>
+    initialFilters
+      ? (Object.entries(initialFilters).map(([id, value]) => ({ id, value })) as ColumnFiltersState)
+      : [],
+  );
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
   const [data, setData] = useState<TData[]>([]);
@@ -258,7 +265,10 @@ export function ProTable<
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className={getTableHeaderClass(header.column.id)}>
+                    <TableHead
+                      key={header.id}
+                      className={cn('!z-auto', getTableHeaderClass(header.column.id))}
+                    >
                       <ColumnHeader
                         header={header}
                         text={{
